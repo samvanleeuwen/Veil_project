@@ -20,7 +20,7 @@ from astropy.visualization import ZScaleInterval #create minimum and maximum Z v
 
 
 #import fits file
-data_im ='/Users/heikamp/Downloads/M51-Ha_MASTER.fit'
+data_im = 'Stack Ha alle datasets.fit'
 
 hdu = fits.open(data_im)[0]
 header = hdu.header 
@@ -35,13 +35,13 @@ plt.imshow(data, vmin=z1, vmax=z2, cmap='gray')
 
 #import list of fits files:
 # set path to calibration folder (path_in) and path to save files (path_out)
-path_in = " /Users/Documents/DATA/"
-path_out=" /Users/Documents/DATA/python/"
+path_in = " /Users/samvanleeuwen/Downloads/DATA_skyview/"
+path_out=" /Users/samvanleeuwen/Downloads/Natuur-Sterrenkunde/Natuurkunde Practicum/"
 
 file_list = glob.glob(path_in+'/**/'+str("*.fit*"),recursive=True) #/**/ means to search subfolders if recursive = True
 sorted_list = sorted(file_list, key=os.path.getmtime) 
 
-hdu_list = fits.open(sorted_list[10])[0] # 10 = 10th item in list
+hdu_list = fits.open(sorted_list[1])[0] # 10 = 10th item in list
 header = hdu_list.header 
 data = hdu_list.data
 
