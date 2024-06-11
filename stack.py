@@ -88,7 +88,7 @@ for getal in range(0,3):
     z = ZScaleInterval()
     z1, z2 = z.get_limits(data)
     plt.imshow(data, vmin=z1, vmax=z2, cmap='gray')
-    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="Greys_r")
+    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="grey")
     _ = CircularAperture(xy, r=10.0).plot(color="y")
     fov = (data.shape * proj_plane_pixel_scales(true_wcs))[0]
     center = true_wcs.pixel_to_world(*np.array(data.shape) / 2)
@@ -100,7 +100,7 @@ for getal in range(0,3):
     wcs = compute_wcs(xy, all_radecs[0:30], tolerance=10)
     # plotting to check the WCS
     radecs_xy = np.array(wcs.world_to_pixel_values(all_radecs))
-    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="Greys_r")
+    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="grey", alpha=0.5)
     _ = CircularAperture(radecs_xy, 5).plot(color="y", alpha=0.5)
     plt.show()
 
