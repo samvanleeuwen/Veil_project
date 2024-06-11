@@ -39,13 +39,11 @@ try:
     data, true_wcs = hdu.data, WCS(hdu.header)
     mean, median, std = sigma_clipped_stats(data, sigma=3.0)
     xy = find_peaks(data)[0:20]
-
-    print(header)
-
+    
     z = ZScaleInterval()
     z1, z2 = z.get_limits(data)
-    plt.imshow(data, vmin=z1, vmax=z2, cmap='gray')
-    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="Greys_r")
+    plt.imshow(data, vmin=z1, vmax=z2, cmap='gray')  # Display the main image using ZScaleInterval
+    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="gray", alpha=0.5)  # Overlay the background image
     _ = CircularAperture(xy, r=10.0).plot(color="y")
     fov = (data.shape * proj_plane_pixel_scales(true_wcs))[0]
     center = true_wcs.pixel_to_world(*np.array(data.shape) / 2)
@@ -57,8 +55,9 @@ try:
     wcs = compute_wcs(xy, all_radecs[0:30], tolerance=10)
     # plotting to check the WCS
     radecs_xy = np.array(wcs.world_to_pixel_values(all_radecs))
-    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="Greys_r")
+    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="gray", alpha=0.5)
     _ = CircularAperture(radecs_xy, 5).plot(color="y", alpha=0.5)
+    plt.show()
 except FileNotFoundError:
     print(f"File {data_im} not found.")
 except Exception as e:
@@ -78,6 +77,32 @@ sorted_list = sorted(file_list, key=os.path.getmtime)
 
 # Debugging output to check sorted_list contents
 print(f"Sorted files: {sorted_list}")
+
+for getal in range(0,3):
+    hdu_list= fits.open(sorted_list[getal])[0]
+    header = hdu_list.header
+    data, true_wcs = hdu_list.data, WCS(hdu_list.header)
+    mean, median, std = sigma_clipped_stats(data, sigma=3.0)
+    xy = find_peaks(data)[0:20]
+
+    z = ZScaleInterval()
+    z1, z2 = z.get_limits(data)
+    plt.imshow(data, vmin=z1, vmax=z2, cmap='gray')
+    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="Greys_r")
+    _ = CircularAperture(xy, r=10.0).plot(color="y")
+    fov = (data.shape * proj_plane_pixel_scales(true_wcs))[0]
+    center = true_wcs.pixel_to_world(*np.array(data.shape) / 2)
+    all_radecs = gaia_radecs(center, 1.2 * fov)
+
+    # we only keep stars 0.01 degree apart from each other
+    all_radecs = sparsify(all_radecs, 0.01)
+    # we only keep the 12 brightest stars from gaia
+    wcs = compute_wcs(xy, all_radecs[0:30], tolerance=10)
+    # plotting to check the WCS
+    radecs_xy = np.array(wcs.world_to_pixel_values(all_radecs))
+    plt.imshow(data, vmin=np.median(data), vmax=3 * np.median(data), cmap="Greys_r")
+    _ = CircularAperture(radecs_xy, 5).plot(color="y", alpha=0.5)
+    plt.show()
 
 if len(sorted_list) > 1:
     try:
