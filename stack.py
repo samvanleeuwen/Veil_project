@@ -46,7 +46,7 @@ try:
     ax.set_xlim(wx1,wx2)
     ax.set_ylim(wy1,wy2)
     
-    plt.plot
+    plt.plot()
     
 except FileNotFoundError:
     print(f"File {data_im} not found.")
@@ -70,7 +70,7 @@ sorted_list = sorted(file_list, key=os.path.getmtime)
 # Debugging output to check sorted_list contents
 print(f"Sorted files: {sorted_list}")
 
-for getal in range(0,3):
+for getal in range(0,5):
     getal = getal + 1
     hdu_list= fits.open(file_list[getal])[0]
     header = hdu_list.header
@@ -98,4 +98,4 @@ for getal in range(0,3):
     ax.set_xlim(wx1,wx2)
     ax.set_ylim(wy1,wy2)
     
-    plt.plot
+    plt.plot()
