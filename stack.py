@@ -1,101 +1,59 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun 13 17:40:00 2024
+Created on Fri Jun 14 10:58:45 2024
 
 @author: milan
 """
 
-from astropy.wcs import WCS
-import numpy as np
-from astropy.io import fits
-from astropy.wcs import WCS
-from astropy.visualization import ZScaleInterval
 import matplotlib.pyplot as plt
-import os  # os.path to manipulate file paths
-import glob  # finding pathnames (to search for certain fits files in folders and subfolders)
+from astropy.wcs import WCS
+from astropy.io import fits
+import numpy as np
+from astropy.visualization import ZScaleInterval
+from reproject import reproject_interp
+from astropy.visualization import ZScaleInterval
 
-# Path to the FITS file to process
-data_im = 'C:/Uva/Jaar 1 dingen/Project/Stacks project/Stack van alle datasets/GedownloadO3.fits'
+filename = 'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadHa.fits'
 
-try:
-    # Open the FITS file and extract data
-    with fits.open(data_im) as hdu_list:
-        hdu = hdu_list[0]
-        header = hdu.header
-        data = hdu.data
- 
-    wcs = WCS(header)
+# Path to the FITS files
+reference_fits = 'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadHa.fits'  # FITS file with the desired WCS
+target_fits = 'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadWise12.fits'     # FITS file to be aligned
 
-    wx1, wy1 = wcs.wcs_world2pix(313.9,30.87, 1)
-    wx2, wy2 = wcs.wcs_world2pix(314.5,31.34, 1)
-    
-    
-    fig = plt.figure()
-    ax = plt.subplot(111, projection=wcs)
-    
-    # Apply ZScaleInterval to set the display range
-    z = ZScaleInterval()
-    z1, z2 = z.get_limits(data)
-    
-    ax.imshow(data, cmap='gray', vmin=z1, vmax=z2, interpolation=None, origin='lower')
-    ax.set_xlabel("Right Ascension [degrees]")
-    ax.set_ylabel("Declination [degrees]")
-    ax.coords.grid(color='white', alpha=0.5, linestyle='solid')
-    
-    ax.set_autoscale_on(False)
-    ax.set_xlim(wx1,wx2)
-    ax.set_ylim(wy1,wy2)
-    
-    plt.plot()
-    
-except FileNotFoundError:
-    print(f"File {data_im} not found.")
-except ValueError as ve:
-    print(f"ValueError: {ve}")
-except Exception as e:
-    print(f"An error occurred: {e}")
-    
-# Import list of fits files:
-# Set path to calibration folder (path_in) and path to save files (path_out)
-path_in = "C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen"
-path_out = "C:/Uva/Jaar 1 dingen/Project/Stacks project/Stacks gecalibreerd met x-ray en röntgen/"
+# Open the reference FITS file
+with fits.open(reference_fits) as ref_hdu_list:
+    ref_hdu = ref_hdu_list[0]
+    ref_data = ref_hdu.data
+    ref_wcs = WCS(ref_hdu.header)
 
-file_list = glob.glob(os.path.join(path_in, '**', '*.fits*'), recursive=True)  # Search subfolders if recursive=True
+# Open the target FITS file
+with fits.open(target_fits) as tgt_hdu_list:
+    tgt_hdu = tgt_hdu_list[0]
+    tgt_data = tgt_hdu.data
+    tgt_wcs = WCS(tgt_hdu.header)
 
-# Debugging output to check file_list contents
-print(f"Files found: {file_list}")
+from reproject import reproject_interp
 
-sorted_list = sorted(file_list, key=os.path.getmtime)
+# Reproject the target image to the WCS of the reference image
+reprojected_data, footprint = reproject_interp((tgt_data, tgt_wcs), ref_wcs, shape_out=ref_data.shape)
 
-# Debugging output to check sorted_list contents
-print(f"Sorted files: {sorted_list}")
+# Apply ZScaleInterval to set the display range
+z = ZScaleInterval()
+ref_z1, ref_z2 = z.get_limits(ref_data)
+tgt_z1, tgt_z2 = z.get_limits(reprojected_data)
 
-for getal in range(0,5):
-    getal = getal + 1
-    hdu_list= fits.open(file_list[getal])[0]
-    header = hdu_list.header
-    data, true_wcs = hdu_list.data, WCS(hdu_list.header)
+# Plot the reference image
+fig, ax = plt.subplots(1, 2, figsize=(12, 6), subplot_kw={'projection': ref_wcs})
+ax[0].imshow(ref_data, vmin=ref_z1, vmax=ref_z2, cmap='gray', origin='lower')
+ax[0].set_title('Reference Image')
+ax[0].coords.grid(color='white', ls='solid')
+ax[0].set_xlabel('RA')
+ax[0].set_ylabel('Dec')
 
-    wcs = WCS(header)
+# Plot the reprojected target image
+ax[1].imshow(reprojected_data, vmin=tgt_z1, vmax=tgt_z2, cmap='gray', origin='lower')
+ax[1].set_title('Reprojected Target Image')
+ax[1].coords.grid(color='white', ls='solid')
+ax[1].set_xlabel('RA')
+ax[1].set_ylabel('Dec')
 
-    wx1, wy1 = wcs.wcs_world2pix(313.9,30.87, 1)
-    wx2, wy2 = wcs.wcs_world2pix(314.5,31.34, 1)
-    
-    
-    fig = plt.figure()
-    ax = plt.subplot(111, projection=wcs)
-    
-    # Apply ZScaleInterval to set the display range
-    z = ZScaleInterval()
-    z1, z2 = z.get_limits(data)
-    
-    ax.imshow(data, cmap='gray', vmin=z1, vmax=z2, interpolation=None, origin='lower')
-    ax.set_xlabel("Right Ascension [degrees]")
-    ax.set_ylabel("Declination [degrees]")
-    ax.coords.grid(color='white', alpha=0.5, linestyle='solid')
-    
-    ax.set_autoscale_on(False)
-    ax.set_xlim(wx1,wx2)
-    ax.set_ylim(wy1,wy2)
-    
-    plt.plot()
+plt.show()
