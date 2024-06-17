@@ -6,6 +6,7 @@ Created on Fri Jun 14 10:58:45 2024
 """
 
 import numpy as np
+import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from reproject import reproject_interp
@@ -38,15 +39,14 @@ boxes = [
     (121, 2790, 780, 3321)
 ]
 
-# Define a function to plot the intensity profiles for each box in separate figures
+# Define a function to plot the intensity profiles for each box
 def plot_intensity_profiles(data_list, boxes):
     """
     Plots the intensity profiles of vertical boxes at specified positions.
     """
     colors = ['b', 'g', 'r', 'c', 'm']
-    
     for box_idx, box in enumerate(boxes):
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(12, 6))
         
         for data_idx, (data, title) in enumerate(zip(data_list, titles)):
             reprojected_data, tgt_wcs = data
@@ -64,7 +64,8 @@ def plot_intensity_profiles(data_list, boxes):
         plt.ylabel('Normalized intensity')
         plt.title(f'Intensity Profiles for Box {box_idx + 1}')
         plt.legend()
-        plt.show()
+    
+    plt.show()
 
 # Open the reference FITS file (first file in the list)
 with fits.open(fits_files[0]) as ref_hdu_list:
@@ -85,5 +86,30 @@ for file, title in zip(fits_files, titles):
         reprojected_data, footprint = reproject_interp((tgt_data, tgt_wcs), ref_wcs, shape_out=ref_data.shape)
         reprojected_data_list.append((reprojected_data, tgt_wcs))
 
-# Plot intensity profiles for each box in separate figures
+# Plot intensity profiles for each box
 plot_intensity_profiles(reprojected_data_list, boxes)
+
+# Plot all reprojected FITS files with boxes
+plt.figure(figsize=(18, 8))
+
+for i, (data, title) in enumerate(zip(reprojected_data_list, titles)):
+    reprojected_data, tgt_wcs = data
+    ax = plt.subplot(1, len(fits_files), i + 1, projection=tgt_wcs)
+    zscale = ZScaleInterval()
+    vmin, vmax = zscale.get_limits(reprojected_data)
+    ax.imshow(reprojected_data, origin='lower', cmap='gray', vmin=vmin, vmax=vmax)
+    
+    for box in boxes:
+        x1, y1, x2, y2 = box
+        if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+            rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='r', facecolor='none')
+            ax.add_patch(rect)
+        else:
+            print(f"Warning: Box {box} exceeds image dimensions for {title}")
+    
+    ax.set_title(f'{title} with Analyzed Boxes')
+    ax.set_xlabel('RA')
+    ax.set_ylabel('Dec')
+    
+plt.tight_layout()
+plt.show()
