@@ -47,7 +47,12 @@ def analyse():
                 intensiteit_Ha = (float(data_opgeknipt[1]))
                 l_intensiteit_Ha.append(intensiteit_Ha)
         normalisatie_Ha = max(l_intensiteit_Ha)
-        locatie_Ha = l_intensiteit_Ha.index(normalisatie_Ha)
+        lijst_i_Ha = []
+        for i in l_intensiteit_Ha:
+            lijst_i_Ha.append(i)
+        lijst_i_Ha.sort()
+        locatie_Ha = (l_intensiteit_Ha.index(lijst_i_Ha[-1]) + l_intensiteit_Ha.index(lijst_i_Ha[-2]) + l_intensiteit_Ha.index(lijst_i_Ha[-3]))/3
+       
         for i in range (0,n):
             l_intensiteit_genormaliseerd_Ha.append(l_intensiteit_Ha[i]/normalisatie_Ha)
             
@@ -57,7 +62,7 @@ def analyse():
         schaal = 0.42
         verschil = verschil_in_pixels * schaal
         #print(verschil_in_pixels)
-        print(f'verschil in afstand (2D) tussen pieken in arc seconds', verschil)
+        print(f'verschil in gemiddelde afstand (2D) tussen pieken in arc seconds', verschil)
        
         plt.plot(l_pixelwaarde, l_intensiteit_genormaliseerd, 'g')
         plt.plot(l_pixelwaarde, l_intensiteit_genormaliseerd_Ha, 'r') 
