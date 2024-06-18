@@ -59,7 +59,7 @@ def analyse():
         
         # geeft verschil in pixels tussen beide pieken aan
         verschil_in_pixels = locatie_O3 - locatie_Ha
-        schaal = 0.42
+        schaal = 0.43
         verschil = verschil_in_pixels * schaal
         #print(verschil_in_pixels)
         print(f'verschil in gemiddelde afstand (2D) tussen pieken in arc seconds', verschil)
