@@ -15,29 +15,44 @@ import matplotlib.pyplot as plt
 
 # Paths to the FITS files
 fits_files = [
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadHa.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadO3.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/DSS1 2.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/Wise 12 2.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/PSPC2.0 2.fits'
+    '/Users/samvanleeuwen/Downloads/Project Veil/Stack Ha alle datasets.fit',
+    '/Users/samvanleeuwen/Downloads/Project Veil/Stack OIII alle datasets.fit',
 ]
 
 # Titles for each image
 titles = [
     'Ha',
-    'OIII',
-    'DSS 1 red',
-    'Wise 12',
-    'PSPC 2.0'
+    'OIII'
 ]
 
 # Fixed Box coordinates [(x1, y1, x2, y2)]
-boxes = [
-    (1120, 2584, 1936, 2912),
-    (2264, 304, 2696, 576),
-    (1608, 1648, 2040, 1944),
-    (121, 2790, 780, 3321)
-]
+def create_diagonal_boxes(image_width, image_height, box_width, box_height, num_boxes):
+    boxes = []
+    step_size = min(box_width, box_height)  # Diagonal step size
+
+    for i in range(num_boxes):
+        x1 = i * step_size
+        y1 = i * step_size
+        x2 = x1 + box_width
+        y2 = y1 + box_height
+        
+        # Ensure the box does not exceed the image dimensions
+        if x2 <= image_width and y2 <= image_height:
+            boxes.append((x1, y1, x2, y2))
+        else:
+            break
+
+    return boxes
+
+# Example usage
+image_width = -4000
+image_height = 4000
+box_width = 100
+box_height = 100
+num_boxes = 10
+
+boxes = create_diagonal_boxes(image_width, image_height, box_width, box_height, num_boxes)
+
 
 # Define a function to plot the intensity profiles for each box
 def plot_intensity_profiles(data_list, boxes):
