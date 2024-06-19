@@ -6,81 +6,120 @@ Created on Fri Jun 14 10:58:45 2024
 """
 
 import numpy as np
-import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from reproject import reproject_interp
 from astropy.visualization import ZScaleInterval
 import matplotlib.pyplot as plt
+from skimage.draw import line
+from matplotlib.patches import Polygon
 
 # Paths to the FITS files
 fits_files = [
-    '/Users/samvanleeuwen/Downloads/Project Veil/Stack Ha alle datasets.fit',
-    '/Users/samvanleeuwen/Downloads/Project Veil/Stack OIII alle datasets.fit',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadHa.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadO3.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/DSS1 2.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/Wise 12 2.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/PSPC2.0 2.fits'
 ]
 
 # Titles for each image
 titles = [
     'Ha',
-    'OIII'
+    'OIII',
+    'DSS 1 red',
+    'Wise 12',
+    'PSPC 2.0'
 ]
 
-# Fixed Box coordinates [(x1, y1, x2, y2)]
-def create_diagonal_boxes(image_width, image_height, box_width, box_height, num_boxes):
-    boxes = []
-    step_size = min(box_width, box_height)  # Diagonal step size
+# Background box coordinates
+background_box = (2703, 3459, 2995, 3702)
 
-    for i in range(num_boxes):
-        x1 = i * step_size
-        y1 = i * step_size
-        x2 = x1 + box_width
-        y2 = y1 + box_height
-        
-        # Ensure the box does not exceed the image dimensions
-        if x2 <= image_width and y2 <= image_height:
-            boxes.append((x1, y1, x2, y2))
-        else:
-            break
+def data_reduction(data, background_box):
+    x1, y1, x2, y2 = background_box
+    background_data = data[y1:y2, x1:x2]
+    background_median = np.median(background_data)
+    return data - background_median
 
-    return boxes
-
-# Example usage
-image_width = -4000
-image_height = 4000
-box_width = 100
-box_height = 100
-num_boxes = 10
-
-boxes = create_diagonal_boxes(image_width, image_height, box_width, box_height, num_boxes)
-
-
-# Define a function to plot the intensity profiles for each box
-def plot_intensity_profiles(data_list, boxes):
+def create_diagonal_box(x1, y1, box_width, box_height, angle):
     """
-    Plots the intensity profiles of vertical boxes at specified positions.
+    Create a single diagonal box.
+    
+    Parameters:
+    - x1, y1: Top-left coordinates of the box.
+    - box_width: Width of the box.
+    - box_height: Height of the box.
+    - angle: Rotation angle of the box (in degrees).
+    
+    Returns:
+    - x_coords, y_coords: Arrays of the x and y coordinates of the box corners.
+    """
+    angle_rad = np.deg2rad(angle)
+    
+    # Calculate the coordinates of the box corners
+    x2 = x1 + box_width * np.cos(angle_rad)
+    y2 = y1 + box_width * np.sin(angle_rad)
+    x3 = x2 + box_height * np.cos(angle_rad + np.pi/2)
+    y3 = y2 + box_height * np.sin(angle_rad + np.pi/2)
+    x4 = x1 + box_height * np.cos(angle_rad + np.pi/2)
+    y4 = y1 + box_height * np.sin(angle_rad + np.pi/2)
+    
+    # Create arrays of the coordinates
+    x_coords = np.array([x1, x2, x3, x4, x1])
+    y_coords = np.array([y1, y2, y3, y4, y1])
+    
+    return x_coords, y_coords
+
+def calculate_intensity_profile(data, x_coords, y_coords, box_length):
+    """
+    Calculate the intensity profile along a diagonal box.
+    
+    Parameters:
+    - data: 2D array of the image data.
+    - x_coords, y_coords: Coordinates of the box corners.
+    - box_length: Length of the diagonal box.
+    
+    Returns:
+    - intensity_profile: Array of median intensity values along the diagonal box.
+    """
+    intensity_profile = []
+    for i in range(box_length):
+        # Calculate the coordinates of the line segment
+        x_start = int(x_coords[0] + i * (x_coords[1] - x_coords[0]) / box_length)
+        y_start = int(y_coords[0] + i * (y_coords[1] - y_coords[0]) / box_length)
+        x_end = int(x_coords[3] + i * (x_coords[2] - x_coords[3]) / box_length)
+        y_end = int(y_coords[3] + i * (y_coords[2] - y_coords[3]) / box_length)
+        
+        # Get the pixel values along the line segment
+        rr, cc = line(y_start, x_start, y_end, x_end)
+        line_data = data[rr, cc]
+        
+        # Calculate the median intensity value along the line segment
+        median_intensity = np.median(line_data)
+        intensity_profile.append(median_intensity)
+    
+    return np.array(intensity_profile)
+
+def plot_intensity_profiles(data_list, boxes, background_box, box_length):
+    """
+    Plots the intensity profiles of diagonal boxes at specified positions.
     """
     colors = ['b', 'g', 'r', 'c', 'm']
     for box_idx, box in enumerate(boxes):
-        plt.figure(figsize=(12, 6))
-        
+        plt.figure()
         for data_idx, (data, title) in enumerate(zip(data_list, titles)):
             reprojected_data, tgt_wcs = data
-            x1, y1, x2, y2 = box
-            if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
-                box_data = reprojected_data[y1:y2, x1:x2]
-                intensity_profile = np.mean(box_data, axis=1)
-                normalized_intensity_profile = (intensity_profile - np.min(intensity_profile)) / (np.max(intensity_profile) - np.min(intensity_profile))
-                y_positions = np.arange(y1, y2)
-                plt.plot(y_positions, normalized_intensity_profile, color=colors[data_idx], label=f'{title}')
-            else:
-                print(f"Warning: Box {box} exceeds image dimensions for {title}")
+            reprojected_data = data_reduction(reprojected_data, background_box)
+            x_coords, y_coords = box
+            intensity_profile = calculate_intensity_profile(reprojected_data, x_coords, y_coords, box_length)
+            normalized_intensity_profile = (intensity_profile - np.min(intensity_profile)) / (np.max(intensity_profile) - np.min(intensity_profile))
+            plt.plot(np.arange(len(normalized_intensity_profile)), normalized_intensity_profile, color=colors[data_idx], label=f'{title}')
         
-        plt.xlabel('Pixel y-coordinate')
+        plt.xlabel('Pixel index along diagonal')
         plt.ylabel('Normalized intensity')
         plt.title(f'Intensity Profiles for Box {box_idx + 1}')
         plt.legend()
-    
-    plt.show()
+        plt.show()
 
 # Open the reference FITS file (first file in the list)
 with fits.open(fits_files[0]) as ref_hdu_list:
@@ -101,10 +140,27 @@ for file, title in zip(fits_files, titles):
         reprojected_data, footprint = reproject_interp((tgt_data, tgt_wcs), ref_wcs, shape_out=ref_data.shape)
         reprojected_data_list.append((reprojected_data, tgt_wcs))
 
-# Plot intensity profiles for each box
-plot_intensity_profiles(reprojected_data_list, boxes)
+# Example usage of create_diagonal_box
+box_width = 500
+box_height = 10
+angle = 30  # Rotation angle of the box in degrees
+box_length = 500  # Length of the diagonal box for intensity profile calculation
 
-# Plot all reprojected FITS files with boxes
+# Define top-left corner coordinates of the boxes
+top_left_coords = [
+    (1120, 2584),
+    (2264, 304),
+    (1608, 1648),
+    (121, 2790)
+]
+
+# Generate diagonal boxes
+diagonal_boxes = [create_diagonal_box(x, y, box_width, box_height, angle) for x, y in top_left_coords]
+
+# Plot intensity profiles for each diagonal box
+plot_intensity_profiles(reprojected_data_list, diagonal_boxes, background_box, box_length)
+
+# Plot all reprojected FITS files with diagonal boxes
 plt.figure(figsize=(18, 8))
 
 for i, (data, title) in enumerate(zip(reprojected_data_list, titles)):
@@ -114,13 +170,18 @@ for i, (data, title) in enumerate(zip(reprojected_data_list, titles)):
     vmin, vmax = zscale.get_limits(reprojected_data)
     ax.imshow(reprojected_data, origin='lower', cmap='gray', vmin=vmin, vmax=vmax)
     
-    for box in boxes:
-        x1, y1, x2, y2 = box
-        if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
-            rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='r', facecolor='none')
-            ax.add_patch(rect)
-        else:
-            print(f"Warning: Box {box} exceeds image dimensions for {title}")
+    # Plot the diagonal boxes
+    for x_coords, y_coords in diagonal_boxes:
+        poly = Polygon(np.column_stack([x_coords, y_coords]), closed=True, edgecolor='r', facecolor='none', linewidth=1)
+        ax.add_patch(poly)
+    
+    # Add background box
+    x1, y1, x2, y2 = background_box
+    if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+        rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='g', facecolor='none')
+        ax.add_patch(rect)
+    else:
+        print(f"Warning: Background box {background_box} exceeds image dimensions for {title}")
     
     ax.set_title(f'{title} with Analyzed Boxes')
     ax.set_xlabel('RA')
