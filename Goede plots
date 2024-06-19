@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 19 14:41:47 2024
+Created on Wed Jun 19 20:24:04 2024
 
+@author: elwin
 """
 
 import numpy as np
@@ -12,24 +13,18 @@ from astropy.visualization import ZScaleInterval
 import matplotlib.pyplot as plt
 from skimage.draw import line
 from matplotlib.patches import Polygon
+from scipy.signal import find_peaks
 
 # Paths to the FITS files
 fits_files = [
     'C:/Users/elwin/OneDrive/Attachments/Analyse maxim/Project_00/Ha.fits',
-    'C:/Users/elwin/OneDrive/Attachments/Analyse maxim/Project_00/O3.fits',]
-'C:/Users/elwin/OneDrive/Attachments/Analyse maxim/Project_00/DSS1red.fits',
-'C:/Users/elwin/OneDrive/Attachments/Analyse maxim/Project_00/wise12.fits',
-'C:/Users/elwin/OneDrive/Attachments/Analyse maxim/Project_00/Pspc_2.0.fits'
-
-
+    'C:/Users/elwin/OneDrive/Attachments/Analyse maxim/Project_00/O3.fits'
+]
 
 # Titles for each image
 titles = [
     'Ha',
-    'OIII',
-    'DSS 1 red',
-    'Wise 12',
-    'PSPC 2.0'
+    'OIII'
 ]
 
 # Background box coordinates
@@ -104,7 +99,9 @@ def plot_intensity_profiles(data_list, boxes, background_box, box_length):
     """
     Plots the intensity profiles of diagonal boxes at specified positions.
     """
-    colors = ['b', 'g', 'r', 'c', 'm']
+    colors = ['r', 'g']
+    profiles = []
+    
     for box_idx, box in enumerate(boxes):
         plt.figure()
         for data_idx, (data, title) in enumerate(zip(data_list, titles)):
@@ -114,12 +111,32 @@ def plot_intensity_profiles(data_list, boxes, background_box, box_length):
             intensity_profile = calculate_intensity_profile(reprojected_data, x_coords, y_coords, box_length)
             normalized_intensity_profile = (intensity_profile - np.min(intensity_profile)) / (np.max(intensity_profile) - np.min(intensity_profile))
             plt.plot(np.arange(len(normalized_intensity_profile)), normalized_intensity_profile, color=colors[data_idx], label=f'{title}')
+            profiles.append((title, normalized_intensity_profile, box_idx))
         plt.xlabel('Pixel index along diagonal')
         plt.ylabel('Normalized intensity')
         plt.title(f'Intensity Profiles for Box {box_idx + 1}')
         plt.legend()
         plt.show()
-        
+    
+    return profiles
+
+def calculate_peak_distances(profiles, scale, box_idx):
+    ha_profile = next(profile for title, profile, idx in profiles if title == 'Ha' and idx == box_idx)
+    oiii_profile = next(profile for title, profile, idx in profiles if title == 'OIII' and idx == box_idx)
+    
+    ha_peaks, _ = find_peaks(ha_profile, height=np.mean(ha_profile))
+    oiii_peaks, _ = find_peaks(oiii_profile, height=np.mean(oiii_profile))
+    
+    if len(ha_peaks) == 0 or len(oiii_peaks) == 0:
+        raise ValueError(f"Not enough peaks detected. Ha peaks: {len(ha_peaks)}, OIII peaks: {len(oiii_peaks)}")
+    
+    highest_ha_peak = ha_peaks[np.argmax(ha_profile[ha_peaks])]
+    highest_oiii_peak = oiii_peaks[np.argmax(oiii_profile[oiii_peaks])]
+    
+    distance_pixels = abs(highest_oiii_peak - highest_ha_peak)
+    distance_arcsec = distance_pixels * scale
+    
+    return distance_pixels, distance_arcsec
 
 # Open the reference FITS file (first file in the list)
 with fits.open(fits_files[0]) as ref_hdu_list:
@@ -143,22 +160,28 @@ for file, title in zip(fits_files, titles):
 # Example usage of create_diagonal_box
 box_width = 14
 box_height = 150
-angle = 20  # Rotation angle of the box in degrees
+angle = 20.1  # Rotation angle of the box in degrees
 box_length = 150  # Length of the diagonal box for intensity profile calculation
 
 # Define top-left corner coordinates of the boxes
 top_left_coords = [
     (2670, 2425),
-    #(2635, 2424),
-    #(1746, 2676)
     (1395, 2660)
 ]
 
 # Generate diagonal boxes
 diagonal_boxes = [create_diagonal_box(x, y, box_width, box_height, angle) for x, y in top_left_coords]
 
-# Plot intensity profiles for each diagonal box
-plot_intensity_profiles(reprojected_data_list, diagonal_boxes, background_box, box_length)
+# Plot intensity profiles for each diagonal box and get profiles
+profiles = plot_intensity_profiles(reprojected_data_list, diagonal_boxes, background_box, box_length)
+
+# Calculate the average distance between the highest intensity points for each box
+scale = 0.43  # arcseconds per pixel
+for box_idx in range(len(diagonal_boxes)):
+    distance_pixels, distance_arcsec = calculate_peak_distances(profiles, scale, box_idx)
+    print(f'Distance between the highest points in Ha and OIII for Box {box_idx + 1}:')
+    print(f'In pixels: {distance_pixels}')
+    print(f'In arcseconds: {distance_arcsec}')
 
 # Plot all reprojected FITS files with diagonal boxes
 plt.figure(figsize=(18, 8))
@@ -170,22 +193,23 @@ for i, (data, title) in enumerate(zip(reprojected_data_list, titles)):
     vmin, vmax = zscale.get_limits(reprojected_data)
     ax.imshow(reprojected_data, origin='lower', cmap='gray', vmin=vmin, vmax=vmax)
     
-    # Plot the diagonal boxes
+        
+        # Plot the diagonal boxes
     for x_coords, y_coords in diagonal_boxes:
         poly = Polygon(np.column_stack([x_coords, y_coords]), closed=True, edgecolor='r', facecolor='none', linewidth=1)
         ax.add_patch(poly)
-    
-    # Add background box
+        
+        # Add background box
     x1, y1, x2, y2 = background_box
     if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
         rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='g', facecolor='none')
         ax.add_patch(rect)
     else:
         print(f"Warning: Background box {background_box} exceeds image dimensions for {title}")
-    
+        
     ax.set_title(f'{title} with Analyzed Boxes')
     ax.set_xlabel('RA')
     ax.set_ylabel('Dec')
-    
-plt.tight_layout()
-plt.show()
+        
+    plt.tight_layout()
+    plt.show()
