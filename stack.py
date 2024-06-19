@@ -17,11 +17,11 @@ from matplotlib.patches import Polygon
 # Paths to the FITS files
 fits_files = [
     'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadHa.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadO3.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/DSS1 2.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/Wise 12 2.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/PSPC2.0 2.fits'
-]
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadO3.fits']
+'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/DSS1 2.fits',
+'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/Wise 12 2.fits',
+'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/PSPC2.0 2.fits'
+
 
 # Titles for each image
 titles = [
@@ -85,10 +85,10 @@ def calculate_intensity_profile(data, x_coords, y_coords, box_length):
     intensity_profile = []
     for i in range(box_length):
         # Calculate the coordinates of the line segment
-        x_start = int(x_coords[0] + i * (x_coords[1] - x_coords[0]) / box_length)
-        y_start = int(y_coords[0] + i * (y_coords[1] - y_coords[0]) / box_length)
-        x_end = int(x_coords[3] + i * (x_coords[2] - x_coords[3]) / box_length)
-        y_end = int(y_coords[3] + i * (y_coords[2] - y_coords[3]) / box_length)
+        x_start = int(x_coords[0] + i * (x_coords[3] - x_coords[0]) / box_length)
+        y_start = int(y_coords[0] + i * (y_coords[3] - y_coords[0]) / box_length)
+        x_end = int(x_coords[1] + i * (x_coords[2] - x_coords[1]) / box_length)
+        y_end = int(y_coords[1] + i * (y_coords[2] - y_coords[1]) / box_length)
         
         # Get the pixel values along the line segment
         rr, cc = line(y_start, x_start, y_end, x_end)
@@ -114,12 +114,12 @@ def plot_intensity_profiles(data_list, boxes, background_box, box_length):
             intensity_profile = calculate_intensity_profile(reprojected_data, x_coords, y_coords, box_length)
             normalized_intensity_profile = (intensity_profile - np.min(intensity_profile)) / (np.max(intensity_profile) - np.min(intensity_profile))
             plt.plot(np.arange(len(normalized_intensity_profile)), normalized_intensity_profile, color=colors[data_idx], label=f'{title}')
-        
         plt.xlabel('Pixel index along diagonal')
         plt.ylabel('Normalized intensity')
         plt.title(f'Intensity Profiles for Box {box_idx + 1}')
         plt.legend()
         plt.show()
+        
 
 # Open the reference FITS file (first file in the list)
 with fits.open(fits_files[0]) as ref_hdu_list:
@@ -141,17 +141,17 @@ for file, title in zip(fits_files, titles):
         reprojected_data_list.append((reprojected_data, tgt_wcs))
 
 # Example usage of create_diagonal_box
-box_width = 500
-box_height = 10
-angle = 30  # Rotation angle of the box in degrees
-box_length = 500  # Length of the diagonal box for intensity profile calculation
+box_width = 14
+box_height = 183
+angle = 330  # Rotation angle of the box in degrees
+box_length = 183  # Length of the diagonal box for intensity profile calculation
 
 # Define top-left corner coordinates of the boxes
 top_left_coords = [
-    (1120, 2584),
-    (2264, 304),
-    (1608, 1648),
-    (121, 2790)
+    (3525, 2510),
+    (2635, 2424),
+    (1709, 2584),
+    (1581, 2866)
 ]
 
 # Generate diagonal boxes
