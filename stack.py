@@ -7,21 +7,28 @@ Created on Fri Jun 14 10:58:45 2024
 
 import numpy as np
 from astropy.io import fits
-from astropy.wcs import WCS
 from reproject import reproject_interp
 from astropy.visualization import ZScaleInterval
 import matplotlib.pyplot as plt
 from skimage.draw import line
 from matplotlib.patches import Polygon
 
+from astropy.wcs import WCS
+
+plt.rcParams['text.usetex'] = False
+
+
+
+
+
 # Paths to the FITS files
 fits_files = [
     'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadHa.fits',
-    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadO3.fits']
-'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/DSS1 2.fits',
-'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/Wise 12 2.fits',
-'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/PSPC2.0 2.fits'
-
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadO3.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/DSS1 2.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/Wise 12 2.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/PSPC2.0 2.fits'
+]
 
 # Titles for each image
 titles = [
@@ -42,69 +49,32 @@ def data_reduction(data, background_box):
     return data - background_median
 
 def create_diagonal_box(x1, y1, box_width, box_height, angle):
-    """
-    Create a single diagonal box.
-    
-    Parameters:
-    - x1, y1: Top-left coordinates of the box.
-    - box_width: Width of the box.
-    - box_height: Height of the box.
-    - angle: Rotation angle of the box (in degrees).
-    
-    Returns:
-    - x_coords, y_coords: Arrays of the x and y coordinates of the box corners.
-    """
     angle_rad = np.deg2rad(angle)
-    
-    # Calculate the coordinates of the box corners
     x2 = x1 + box_width * np.cos(angle_rad)
     y2 = y1 + box_width * np.sin(angle_rad)
     x3 = x2 + box_height * np.cos(angle_rad + np.pi/2)
     y3 = y2 + box_height * np.sin(angle_rad + np.pi/2)
     x4 = x1 + box_height * np.cos(angle_rad + np.pi/2)
     y4 = y1 + box_height * np.sin(angle_rad + np.pi/2)
-    
-    # Create arrays of the coordinates
     x_coords = np.array([x1, x2, x3, x4, x1])
     y_coords = np.array([y1, y2, y3, y4, y1])
-    
     return x_coords, y_coords
 
 def calculate_intensity_profile(data, x_coords, y_coords, box_length):
-    """
-    Calculate the intensity profile along a diagonal box.
-    
-    Parameters:
-    - data: 2D array of the image data.
-    - x_coords, y_coords: Coordinates of the box corners.
-    - box_length: Length of the diagonal box.
-    
-    Returns:
-    - intensity_profile: Array of median intensity values along the diagonal box.
-    """
     intensity_profile = []
     for i in range(box_length):
-        # Calculate the coordinates of the line segment
         x_start = int(x_coords[0] + i * (x_coords[3] - x_coords[0]) / box_length)
         y_start = int(y_coords[0] + i * (y_coords[3] - y_coords[0]) / box_length)
         x_end = int(x_coords[1] + i * (x_coords[2] - x_coords[1]) / box_length)
         y_end = int(y_coords[1] + i * (y_coords[2] - y_coords[1]) / box_length)
-        
-        # Get the pixel values along the line segment
         rr, cc = line(y_start, x_start, y_end, x_end)
         line_data = data[rr, cc]
-        
-        # Calculate the median intensity value along the line segment
         median_intensity = np.median(line_data)
         intensity_profile.append(median_intensity)
-    
     return np.array(intensity_profile)
 
 def plot_intensity_profiles(data_list, boxes, background_box, box_length):
-    """
-    Plots the intensity profiles of diagonal boxes at specified positions.
-    """
-    colors = ['b', 'g', 'r', 'c', 'm']
+    colors = ['r', 'g', 'b', 'c', 'm']
     for box_idx, box in enumerate(boxes):
         plt.figure()
         for data_idx, (data, title) in enumerate(zip(data_list, titles)):
@@ -119,73 +89,126 @@ def plot_intensity_profiles(data_list, boxes, background_box, box_length):
         plt.title(f'Intensity Profiles for Box {box_idx + 1}')
         plt.legend()
         plt.show()
-        
 
-# Open the reference FITS file (first file in the list)
 with fits.open(fits_files[0]) as ref_hdu_list:
     ref_hdu = ref_hdu_list[0]
-    ref_data = ref_hdu.data.astype(float)  # Ensure data is float
-    ref_wcs = WCS(ref_hdu.header)
+    ref_data = ref_hdu.data.astype(float)
 
-# Initialize a list to store the reprojected data
 reprojected_data_list = []
 
-# Reproject each FITS file to the WCS of the reference image
 for file, title in zip(fits_files, titles):
     with fits.open(file) as tgt_hdu_list:
         tgt_hdu = tgt_hdu_list[0]
-        tgt_data = tgt_hdu.data.astype(float)  # Ensure data is float
-        tgt_wcs = WCS(tgt_hdu.header)
-        
-        reprojected_data, footprint = reproject_interp((tgt_data, tgt_wcs), ref_wcs, shape_out=ref_data.shape)
-        reprojected_data_list.append((reprojected_data, tgt_wcs))
+        tgt_data = tgt_hdu.data.astype(float)
+        reprojected_data, footprint = reproject_interp((tgt_data, WCS(tgt_hdu.header)), WCS(ref_hdu.header), shape_out=ref_data.shape)
+        reprojected_data_list.append((reprojected_data, WCS(tgt_hdu.header)))
 
-# Example usage of create_diagonal_box
 box_width = 14
-box_height = 183
-angle = 330  # Rotation angle of the box in degrees
-box_length = 183  # Length of the diagonal box for intensity profile calculation
+box_height = 150
+angle = 20.1
+box_length = 150
 
-# Define top-left corner coordinates of the boxes
 top_left_coords = [
-    (3525, 2510),
-    (2635, 2424),
-    (1709, 2584),
-    (1581, 2866)
+    (2670, 2425),
+    (1395, 2660)
 ]
 
-# Generate diagonal boxes
 diagonal_boxes = [create_diagonal_box(x, y, box_width, box_height, angle) for x, y in top_left_coords]
 
-# Plot intensity profiles for each diagonal box
 plot_intensity_profiles(reprojected_data_list, diagonal_boxes, background_box, box_length)
 
-# Plot all reprojected FITS files with diagonal boxes
-plt.figure(figsize=(18, 8))
+fig, axes = plt.subplots(1, len(fits_files), figsize=(18, 8))
+
+def degrees_to_hms(degrees):
+    total_seconds = degrees * 3600
+    hours = int(total_seconds // 3600)
+    total_seconds %= 3600
+    minutes = int(total_seconds // 60)
+    seconds = total_seconds % 60
+    return f"{hours}h {minutes}m"
+
+def degrees_to_dms(degrees):
+    total_seconds = degrees * 3600
+    degrees = int(total_seconds // 3600)
+    total_seconds %= 3600
+    minutes = int(total_seconds // 60)
+    seconds = total_seconds % 60
+    return f"{degrees}° {minutes}\'"
+
+getal = 0
 
 for i, (data, title) in enumerate(zip(reprojected_data_list, titles)):
+    getal = getal + 1
+    ax = axes[i]
     reprojected_data, tgt_wcs = data
-    ax = plt.subplot(1, len(fits_files), i + 1, projection=tgt_wcs)
     zscale = ZScaleInterval()
     vmin, vmax = zscale.get_limits(reprojected_data)
     ax.imshow(reprojected_data, origin='lower', cmap='gray', vmin=vmin, vmax=vmax)
     
-    # Plot the diagonal boxes
-    for x_coords, y_coords in diagonal_boxes:
-        poly = Polygon(np.column_stack([x_coords, y_coords]), closed=True, edgecolor='r', facecolor='none', linewidth=1)
-        ax.add_patch(poly)
+    if getal==2:
+        
+        # Plot the diagonal boxes
+        for x_coords, y_coords in diagonal_boxes:
+            poly = Polygon(np.column_stack([x_coords, y_coords]), closed=True, edgecolor='g', facecolor='none', linewidth=1)
+            ax.add_patch(poly)
     
-    # Add background box
-    x1, y1, x2, y2 = background_box
-    if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
-        rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='g', facecolor='none')
-        ax.add_patch(rect)
-    else:
-        print(f"Warning: Background box {background_box} exceeds image dimensions for {title}")
+        
+        # Add background box
+        x1, y1, x2, y2 = background_box
+        if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+            rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='b', facecolor='none')
+            ax.add_patch(rect)
+        else:
+            print(f"Warning: Background box {background_box} exceeds image dimensions for {title}")
+    if getal == 1:
+                
+        # Plot the diagonal boxes
+        for x_coords, y_coords in diagonal_boxes:
+            poly = Polygon(np.column_stack([x_coords, y_coords]), closed=True, edgecolor='r', facecolor='none', linewidth=1)
+            ax.add_patch(poly)
     
-    ax.set_title(f'{title} with Analyzed Boxes')
+        
+        # Add background box
+        x1, y1, x2, y2 = background_box
+        if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+            rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='b', facecolor='none')
+            ax.add_patch(rect)
+        else:
+            print(f"Warning: Background box {background_box} exceeds image dimensions for {title}")
+
+    if i == 0 or i == 1:
+        color = 'y' if i == 0 else 'y'
+        for box_idx, (x_coords, y_coords) in enumerate(diagonal_boxes):
+            poly = Polygon(np.column_stack([x_coords, y_coords]), closed=True, edgecolor=color, facecolor='none', linewidth=1, alpha=0.5)
+            ax.add_patch(poly)
+            # Adding labels for the boxes outside the boxes
+            mid_x = (x_coords[0] + x_coords[2]) / 2
+            mid_y = (y_coords[0] + y_coords[2]) / 2
+            offset = 40  # Offset to move the text outside the box
+            ax.text(mid_x + offset, mid_y + offset, str(box_idx + 1), color=color, fontsize=11, ha='center', va='center', alpha=0.7)
+        x1, y1, x2, y2 = background_box
+        if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+            rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='b', facecolor='none')
+            ax.add_patch(rect)
+        else:
+            print(f"Warning: Background box {background_box} exceeds image dimensions for {title}")
+
+    ax.set_title(f'{title}')
     ax.set_xlabel('RA')
-    ax.set_ylabel('Dec')
-    
-plt.tight_layout()
+    ax.set_xlim(0, reprojected_data.shape[1])
+    ra_ticks = np.linspace(314.04326958715717, 314.53365180937936, 5)
+    ax.set_xticks(np.linspace(0, reprojected_data.shape[1], 5))
+    ax.set_xticklabels([degrees_to_hms(tick) for tick in ra_ticks], rotation=45, ha='right')
+
+    if i == 0:
+        ax.set_ylabel('Dec')
+        ax.set_ylim(0, reprojected_data.shape[0])
+        dec_ticks = np.linspace(30.85197440095892, 31.342356623181143, 5)
+        ax.set_yticks(np.linspace(0, reprojected_data.shape[0], 5))
+        ax.set_yticklabels([degrees_to_dms(tick) for tick in dec_ticks])
+    else:
+        ax.set_ylabel('')
+        ax.yaxis.set_tick_params(labelleft=False)
+
+plt.subplots_adjust(wspace=0.4, hspace=0.1)
 plt.show()
