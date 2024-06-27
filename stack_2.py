@@ -17,6 +17,7 @@ Start-up script for astronomy image analysis with Python
 """
 
 # Import packages
+<<<<<<< HEAD
 from astropy.io import fits  # to read in FITS files
 import os  # os.path to manipulate file paths
 import glob  # finding pathnames (to search for certain fits files in folders and subfolders)
@@ -30,23 +31,43 @@ import twirl
 
 # Import fits file
 data_im = 'C:/Users/elwin/.conda/20240518/H-a stacked'
+=======
+# Paths to the FITS files
+fits_files = [
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadHa.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/GedownloadO3.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/DSS1 2.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/Wise 12 2.fits',
+    'C:/Uva/Jaar 1 dingen/Project/Stacks project/Filters x-ray en röntgen/PSPC2.0 2.fits'
+]
 
-try:
-    hdu = fits.open(data_im)[0]
-    header = hdu.header
-    data = hdu.data
+# Titles for each image
+titles = [
+    'Ha',
+    'OIII',
+    'DSS 1 red',
+    'Wise 12',
+    'PSPC 2.0'
+]
+>>>>>>> 8e384777cc26612d6ad54ca4dccc731b6ff555ff
 
-    print(header)
+# Fixed Box coordinates [(x1, y1, x2, y2)]
+boxes = [
+    (1120, 2584, 1936, 2912),
+    (2264, 304, 2696, 576),
+    (1608, 1648, 2040, 1944),
+    (121, 2790, 780, 3321)
+]
 
-    z = ZScaleInterval()
-    z1, z2 = z.get_limits(data)
-    plt.imshow(data, vmin=z1, vmax=z2, cmap='gray')
-    plt.show()
-except FileNotFoundError:
-    print(f"File {data_im} not found.")
-except Exception as e:
-    print(f"An error occurred while opening the FITS file: {e}")
+background_box = (2703, 3459, 2995, 3702)
 
+def data_reduction(data, background_box):
+    x1, y1, x2, y2 = background_box
+    background_data = data[y1:y2, x1:x2]
+    background_median = np.median(background_data)
+    return data - background_median
+
+<<<<<<< HEAD
 # Import list of fits files:
 # Set path to calibration folder (path_in) and path to save files (path_out)
 path_in = "C:/Users/elwin/.conda/20240518/Project_00"
@@ -63,31 +84,90 @@ center = SkyCoord(ra, dec, unit=["deg", "deg"])
 pixel = 0.66 * u.arcsec  # known pixel scale
 shape = hdu.data.shape
 fov = np.max(shape) * pixel.to(u.deg)
+=======
+# Define a function to plot the intensity profiles for each box
+def plot_intensity_profiles(data_list, boxes, background_box):
+    """
+    Plots the intensity profiles of vertical boxes at specified positions.
+    """
+    colors = ['b', 'g', 'r', 'c', 'm']
+    for box_idx, box in enumerate(boxes):
+        plt.figure()
+        for data_idx, (data, title) in enumerate(zip(data_list, titles)):
+            reprojected_data, tgt_wcs = data
+            print('oude')
+            print(reprojected_data)
+            reprojected_data = data_reduction(reprojected_data, background_box)
+            print('nieuwe')
+            print(reprojected_data)
+            x1, y1, x2, y2 = box
+            if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+                box_data = reprojected_data[y1:y2, x1:x2]
+                intensity_profile = np.median(box_data, axis=1)  
+                normalized_intensity_profile = (intensity_profile - np.min(intensity_profile)) / (np.max(intensity_profile) - np.min(intensity_profile))
+                y_positions = np.arange(y1, y2)
+                plt.plot(y_positions, normalized_intensity_profile, color=colors[data_idx], label=f'{title}')
+            else:
+                print(f"Warning: Box {box} exceeds image dimensions for {title}")
+        
+        plt.xlabel('Pixel y-coordinate')
+        plt.ylabel('Normalized intensity')
+        plt.title(f'Intensity Profiles for Box {box_idx + 1}')
+        plt.legend()
+        plt.show()
+>>>>>>> 8e384777cc26612d6ad54ca4dccc731b6ff555ff
 
-file_list = glob.glob(os.path.join(path_in, '**', '*.fit*'), recursive=True)  # Search subfolders if recursive=True
+# Open the reference FITS file (first file in the list)
+with fits.open(fits_files[0]) as ref_hdu_list:
+    ref_hdu = ref_hdu_list[0]
+    ref_data = ref_hdu.data.astype(float)  # Ensure data is float
+    ref_wcs = WCS(ref_hdu.header)
 
-# Debugging output to check file_list contents
-print(f"Files found: {file_list}")
+# Initialize a list to store the reprojected data
+reprojected_data_list = []
 
-sorted_list = sorted(file_list, key=os.path.getmtime)
+# Reproject each FITS file to the WCS of the reference image
+for file, title in zip(fits_files, titles):
+    with fits.open(file) as tgt_hdu_list:
+        tgt_hdu = tgt_hdu_list[0]
+        tgt_data = tgt_hdu.data.astype(float)  # Ensure data is float
+        tgt_wcs = WCS(tgt_hdu.header)
+        
+        reprojected_data, footprint = reproject_interp((tgt_data, tgt_wcs), ref_wcs, shape_out=ref_data.shape)
+        reprojected_data_list.append((reprojected_data, tgt_wcs))
 
-# Debugging output to check sorted_list contents
-print(f"Sorted files: {sorted_list}")
+# Plot intensity profiles for each box
+plot_intensity_profiles(reprojected_data_list, boxes, background_box)
 
-if len(sorted_list) > 1:
-    try:
-        hdu_list = fits.open(sorted_list[2])[0]  # 1 = 2nd item in list (index starts at 0)
-        header = hdu_list.header
-        data = hdu_list.data
+# Plot all reprojected FITS files with boxes
+plt.figure(figsize=(18, 8))
 
-        # Simple manipulation and save fits file
-        data_transposed = data.T
-        data_sub = data_transposed - data_transposed  # Example manipulation
-        data_median = np.median(data)
+for i, (data, title) in enumerate(zip(reprojected_data_list, titles)):
+    reprojected_data, tgt_wcs = data
+    ax = plt.subplot(1, len(fits_files), i + 1, projection=tgt_wcs)
+    zscale = ZScaleInterval()
+    vmin, vmax = zscale.get_limits(reprojected_data)
+    ax.imshow(reprojected_data, origin='lower', cmap='gray', vmin=vmin, vmax=vmax)
+    
+    for box in boxes:
+        x1, y1, x2, y2 = box
+        if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+            rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='r', facecolor='none')
+            ax.add_patch(rect)
+        else:
+            print(f"Warning: Box {box} exceeds image dimensions for {title}")
 
-        hdu = fits.PrimaryHDU(data_sub, header=header)
-        hdu.writeto(os.path.join(path_out, "filename.fits"), overwrite=True)
-    except Exception as e:
-        print(f"An error occurred while processing the FITS file: {e}")
-else:
-    print("No FITS files found or not enough files in the specified directory.")
+    # Add background box
+    x1, y1, x2, y2 = background_box
+    if x2 <= reprojected_data.shape[1] and y2 <= reprojected_data.shape[0]:
+        rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='g', facecolor='none')
+        ax.add_patch(rect)
+    else:
+        print(f"Warning: Background box {background_box} exceeds image dimensions for {title}")
+    
+    ax.set_title(f'{title} with Analyzed Boxes')
+    ax.set_xlabel('RA')
+    ax.set_ylabel('Dec')
+    
+plt.tight_layout()
+plt.show()
