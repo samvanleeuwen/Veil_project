@@ -1,6 +1,10 @@
 # This is a basic workflow to help you get started with Actions
 
+<<<<<<< HEAD
 name: yoyo
+=======
+name: Milan
+>>>>>>> 0faa6c2ac3f27d72f57894cfb072851fc473f686
 
 # Controls when the workflow will run
 on:
@@ -34,3 +38,7 @@ jobs:
         run: |
           echo Add other actions to build,
           echo test, and deploy your project.
+
+
+
+test test
